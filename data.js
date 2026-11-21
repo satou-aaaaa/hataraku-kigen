@@ -53,13 +53,22 @@
     };
   }
   // id：種類、lv：難しさ、ans：答えの期限、grp：きまり（yatou・yasumi・seikyu）、src：出典の法令、name：帳に出す名前、look：1回目のヒント、key：2回目のヒント（条文の言葉）、why：説明（法令の名前と条を書く）、sit：言い方、near：まぎらわしい期間、media：問いの見出し
+  // 条文の言葉をヒントに出すときに、意味を変えずに読みやすくする（「三月」→「3か月」・「知つた」→「知った」・漢数字→数字）。
+  // 条文の「三月」は3か月のこと（3月とまちがえやすい）。shared-workflows の scripts/game-ja.mjs の law:raw が見る（routines/game-ja.md）
+  const KN = { "〇": 0, "一": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6, "七": 7, "八": 8, "九": 9 };
+  const kanjiNum = (s) => { let n = 0, c = 0; for (const ch of s) { const u = { "十": 10, "百": 100, "千": 1000 }[ch]; if (u) { n += (c || 1) * u; c = 0; } else c = KN[ch]; } return n + c; };
+  const lawPlain = (s) => String(s)
+    .replace(/([〇一二三四五六七八九十百千]+)(?:箇月|月(?![〇一二三四五六七八九十0-9]*日))/g, (_, k) => kanjiNum(k) + "か月")
+    .replace(/([〇一二三四五六七八九十百千]+)(年|日|か月|週間|時間|歳|分の|条|項|号|メートル|キロメートル|キログラム|トン|人|回)/g, (_, k, u) => kanjiNum(k) + u)
+    .replace(/(分の|条の)([〇一二三四五六七八九十百千]+)/g, (_, p, k) => p + kanjiNum(k))
+    .replace(/([一-龯]|[あよなわ])つ(た(?!め)|て)/g, "$1っ$2");
   const K = (id, lv, ans, grp, src, name, look, key, why, sit, near = [], media = "仕事") => {
     const a = LEVELS.indexOf(ans), nr = near.map((n) => LEVELS.indexOf(n));
     if (a < 0 || nr.some((i) => i < 0)) throw new Error("期間の名前がちがう: " + id);
     if (!GROUPS[grp]) throw new Error("2段目がちがう: " + id);
     if (!SRC[src] || !why.includes(SRC[src][0].match(/「(.+)」/)[1] + " 第")) throw new Error("説明に法令と条が無い: " + id);
     sit.media = media;
-    return { id, lv, a, ans, grp, near: nr, name, look, key, why, src: [src], make: kigenQ(a, sit, nr) };
+    return { id, lv, a, ans, grp, near: nr, name, look, key: lawPlain(key), why, src: [src], make: kigenQ(a, sit, nr) };
   };
 
   const KINDS = [
@@ -108,7 +117,7 @@
       "小学校に上がる前の子を育てる人が残業をしないよう求めるときは、始める日の1か月前までに請求します（育児・介護休業法 第16条の8）。",
       ["保育園の子がいて、残業をなくしてほしい。会社への請求は、始める日のどれだけ前まで？", "所定外労働の制限の請求の期限（制限開始予定日の前）。", "子育て中の残業の免除。始めたい日のいつまでに頼む？", "小学校就学前の子を育てる人が、残業の制限を請求する期限。", "子の送り迎えのため残業を断りたい。請求はいつまでに？"], ["14日", "6週間"]),
     // ---- 契約と請求 ----
-    K("muki", 0, "5年", "seikyu", "keiyaku", "無期の契約への転換", "1年の5倍です。", "通算契約期間」という。）が五年を超える労働者",
+    K("muki", 0, "5年", "seikyu", "keiyaku", "無期の契約への転換", "1年の5倍です。", "通算契約期間が五年を超える労働者",
       "同じ会社で期間を決めた契約を更新して、合わせて5年を超えた人が申し込むと、期間のない契約に変わります（労働契約法 第18条）。",
       ["1年ごとの契約を何度も更新している。期間のない契約に変えてと申し込めるのは、通算どれだけを超えたとき？", "無期転換の申込みができる通算契約期間。", "有期の契約を繰り返した人が、無期の契約を求められる境目。", "通算契約期間がどれだけを超えると、無期の契約に変えられる？", "契約社員の無期転換ルール。通算でいつを超えたら？"], ["3年", "1年"]),
     K("kuhaku", 1, "6か月", "seikyu", "keiyaku", "通算がリセットされる空白", "1年の半分です。", "当該空白期間が六月",
